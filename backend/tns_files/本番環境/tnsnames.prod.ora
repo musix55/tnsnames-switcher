@@ -1,0 +1,11 @@
+PROD_DB = (
+    DESCRIPTION = (
+        ADDRESS = (PROTOCOL = TCP)
+        (HOST = prod-db-host)
+        (PORT = 1521)
+    )
+    (
+        CONNECT_DATA = (SERVER = DEDICATED)
+        (SERVICE_NAME = prod.world)
+    )
+)
