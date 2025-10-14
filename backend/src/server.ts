@@ -8,12 +8,16 @@ const port = 3001;
 
 // 重要: この環境変数をOracleのTNS_ADMINパスに設定してください
 // 例: C:\oracle\product\19.0.0\client_1\network\admin
-const TNS_ADMIN_PATH = process.env.TNS_ADMIN || ''; // 環境変数から取得する方が望ましい
+const TNS_ADMIN_PATH = process.env.TNS_ADMIN;
 const TNS_FILENAME = 'tnsnames.ora';
 const TARGET_TNS_FILE_PATH = TNS_ADMIN_PATH ? path.join(TNS_ADMIN_PATH, TNS_FILENAME) : '';
 
 // tnsnames.oraの各バージョンを保存するディレクトリ
-const TNS_FILES_DIR = 'C:\\oracle\\各システム用tnsnames.ora';
+const TNS_FILES_DIR = 'C:\\Oracle\\各システム用tnsnames.ora';
+
+console.log(`TNS_ADMIN_PATH: ${TNS_ADMIN_PATH}`);
+console.log(`TARGET_TNS_FILE_PATH: ${TARGET_TNS_FILE_PATH}`);
+console.log(`TNS_FILES_DIR: ${TNS_FILES_DIR}`);
 
 app.use(cors());
 app.use(express.json());
