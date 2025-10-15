@@ -15,10 +15,6 @@ const TARGET_TNS_FILE_PATH = TNS_ADMIN_PATH ? path.join(TNS_ADMIN_PATH, TNS_FILE
 // tnsnames.oraの各バージョンを保存するディレクトリ
 const TNS_FILES_DIR = 'C:\\Oracle\\各システム用tnsnames.ora';
 
-console.log(`TNS_ADMIN_PATH: ${TNS_ADMIN_PATH}`);
-console.log(`TARGET_TNS_FILE_PATH: ${TARGET_TNS_FILE_PATH}`);
-console.log(`TNS_FILES_DIR: ${TNS_FILES_DIR}`);
-
 app.use(cors());
 app.use(express.json());
 
@@ -72,7 +68,6 @@ app.post('/api/switch', async (req, res) => {
   try {
     const sourceDir = path.join(TNS_FILES_DIR, dirName);
     const filesInDir = await fs.readdir(sourceDir);
-    // ディレクトリ内で.oraで終わるファイルを探す
     const oraFile = filesInDir.find(f => f.endsWith('.ora'));
 
     if (!oraFile) {
@@ -81,7 +76,7 @@ app.post('/api/switch', async (req, res) => {
 
     const sourcePath = path.join(sourceDir, oraFile);
 
-    await fs.copyFile(sourcePath, TARGET_TNS_FILE_PATH); // ファイルをコピー
+    await fs.copyFile(sourcePath, TARGET_TNS_FILE_PATH);
     res.json({ message: `${dirName} (${oraFile}) への切り替えに成功しました。` });
   } catch (err) {
     console.error(`${dirName} への切り替えに失敗しました:`, err);

@@ -1,5 +1,4 @@
-/* eslint-disable */
-import /*React,*/ { useState, useEffect } from 'react';
+import { useState, useEffect, type ChangeEvent, useCallback } from 'react';
 import axios from 'axios'; // HTTPリクエスト用にaxiosを使用
 import './App.css';
 
@@ -12,28 +11,42 @@ function App() {
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
 
-  const fetchData = async () => {
+  const fetchCurrentTns = useCallback(async () => {
+    try {
+      const currentTnsResponse = await axios.get<string>(`${API_BASE_URL}/api/current`);
+      setCurrentTns(currentTnsResponse.data);
+    } catch (err: unknown) {
+      console.error("tnsnames.ora の内容取得中にエラーが発生しました:", err);
+      setError('現在の tnsnames.ora の内容を取得できませんでした。');
+      setCurrentTns('');
+    }
+  }, []);
+
+  const fetchInitialData = useCallback(async () => {
     try {
       setError('');
       const filesResponse = await axios.get<string[]>(`${API_BASE_URL}/api/files`);
       setFiles(filesResponse.data);
-      if (filesResponse.data.length > 0 && !selectedFile) {
+      if (filesResponse.data.length > 0) {
         setSelectedFile(filesResponse.data[0]);
       }
-
-      const currentTnsResponse = await axios.get<string>(`${API_BASE_URL}/api/current`);
-      setCurrentTns(currentTnsResponse.data);
-    } catch (err: any) {
+      await fetchCurrentTns();
+    } catch (err: unknown) {
       console.error("データの取得中にエラーが発生しました:", err);
-      const errorMessage = err.response?.data || err.message || 'サーバーからデータを取得できませんでした。';
+      let errorMessage = 'データを取得できませんでした。';
+      if (axios.isAxiosError(err)) {
+        errorMessage = err.response?.data?.message || err.message || errorMessage;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
       setError(errorMessage);
-      setCurrentTns(''); // エラー時は現在の内容をクリア
+      setCurrentTns('');
     }
-  };
+  }, [fetchCurrentTns]);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    fetchInitialData();
+  }, [fetchInitialData]);
 
   const handleSwitch = async () => {
     if (!selectedFile) {
@@ -46,10 +59,15 @@ function App() {
       const response = await axios.post(`${API_BASE_URL}/api/switch`, { filename: selectedFile });
       setMessage(response.data.message);
       // 切り替え後に現在のtnsnamesの内容を再取得
-      await fetchData();
-    } catch (err: any) {
+      await fetchCurrentTns();
+    } catch (err: unknown) {
       console.error("ファイルの切り替え中にエラーが発生しました:", err);
-      const errorMessage = err.response?.data || err.message || 'ファイルの切り替えに失敗しました。';
+      let errorMessage = 'ファイルの切り替えに失敗しました。';
+      if (axios.isAxiosError(err)) {
+        errorMessage = err.response?.data?.message || err.message || errorMessage;
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
       setError(errorMessage);
     }
   };
@@ -57,7 +75,7 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>tnsnames.ora-switcher</h1>
+        <h1>tnsnames.ora切り替えツール</h1>
       </header>
       <main>
         {message && <p className="message success">{message}</p>}
@@ -70,7 +88,7 @@ function App() {
             <div className="controls">
               <select
                 value={selectedFile}
-                onChange={(e) => setSelectedFile(e.target.value)}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => setSelectedFile(e.target.value)}
                 aria-label="TNSファイルを選択"
               >
                 {files.map((file) => (
