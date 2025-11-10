@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import cors from 'cors';
+import iconv from 'iconv-lite';
 
 const app = express();
 const port = 3001;
@@ -81,6 +82,38 @@ app.post('/api/switch', async (req, res) => {
   } catch (err) {
     console.error(`${dirName} への切り替えに失敗しました:`, err);
     res.status(500).send(`${dirName} への切り替えに失敗しました: ${(err as Error).message}`);
+  }
+});
+
+// 編集したtnsnames.oraを保存するエンドポイント
+app.post('/api/save', async (req, res) => {
+  const content: string = req.body?.content;
+  if (!TNS_ADMIN_PATH) {
+    return res.status(400).send('環境変数 TNS_ADMIN が設定されていません。');
+  }
+  if (typeof content !== 'string') {
+    return res.status(400).send('content が必要です。');
+  }
+
+  try {
+    // 既存ファイルのバックアップ（存在すれば）
+    try {
+      const backupPath = `${TARGET_TNS_FILE_PATH}.bak.${Date.now()}`;
+      await fs.copyFile(TARGET_TNS_FILE_PATH, backupPath);
+      console.log(`バックアップを作成しました: ${backupPath}`);
+    } catch (backupErr) {
+      console.warn('バックアップ作成に失敗しました（ファイルが存在しない可能性あり）:', backupErr);
+      // 続行する
+    }
+
+    // Shift_JIS にエンコードして書き込み
+    const buffer = iconv.encode(content, 'shift_jis');
+    await fs.writeFile(TARGET_TNS_FILE_PATH, buffer);
+
+    res.json({ message: 'tnsnames.ora を保存しました。' });
+  } catch (err) {
+    console.error('tnsnames.ora の保存に失敗しました:', err);
+    res.status(500).send('tnsnames.ora の保存に失敗しました: ' + (err as Error).message);
   }
 });
 

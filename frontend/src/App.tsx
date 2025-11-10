@@ -10,11 +10,16 @@ function App() {
   const [selectedFile, setSelectedFile] = useState<string>('');
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editContent, setEditContent] = useState<string>('');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const fetchCurrentTns = useCallback(async () => {
     try {
       const currentTnsResponse = await axios.get<string>(`${API_BASE_URL}/api/current`);
       setCurrentTns(currentTnsResponse.data);
+      // 編集用にも反映
+      setEditContent(currentTnsResponse.data);
     } catch (err: unknown) {
       console.error("tnsnames.ora の内容取得中にエラーが発生しました:", err);
       setError('現在の tnsnames.ora の内容を取得できませんでした。');
@@ -72,6 +77,39 @@ function App() {
     }
   };
 
+  const startEditing = () => {
+    setIsEditing(true);
+    setEditContent(currentTns);
+    setMessage('');
+    setError('');
+  };
+
+  const cancelEditing = () => {
+    setIsEditing(false);
+    setEditContent(currentTns);
+    setMessage('');
+    setError('');
+  };
+
+  const saveEdit = async () => {
+    setIsSaving(true);
+    setMessage('');
+    setError('');
+    try {
+      const res = await axios.post(`${API_BASE_URL}/api/save`, { content: editContent });
+      setMessage(res.data.message || '保存に成功しました。');
+      setIsEditing(false);
+      await fetchCurrentTns();
+    } catch (err: unknown) {
+      let errorMessage = '保存に失敗しました。';
+      if (axios.isAxiosError(err)) errorMessage = String(err.response?.data) || err.message || errorMessage;
+      else if (err instanceof Error) errorMessage = err.message;
+      setError(errorMessage);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="App">
       <header className="App-header">
@@ -105,7 +143,28 @@ function App() {
 
           <div className="current-tns-container">
             <h2>現在の <code>tnsnames.ora</code> の内容</h2>
-            <pre><code>{currentTns || '現在の tnsnames.ora を読み込めませんでした。'}</code></pre>
+            {!isEditing ? (
+              <>
+                <pre><code>{currentTns || '現在の tnsnames.ora を読み込めませんでした。'}</code></pre>
+                <div className="edit-controls">
+                  <button onClick={startEditing} disabled={!currentTns}>編集</button>
+                </div>
+              </>
+            ) : (
+              <>
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={20}
+                  style={{ width: '100%', fontFamily: 'monospace' }}
+                  aria-label="tnsnames.ora 編集"
+                />
+                <div className="edit-controls">
+                  <button onClick={saveEdit} disabled={isSaving}>保存</button>
+                  <button onClick={cancelEditing} disabled={isSaving}>キャンセル</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </main>
