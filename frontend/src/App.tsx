@@ -13,6 +13,7 @@ function App() {
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editContent, setEditContent] = useState<string>('');
   const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [writeBack, setWriteBack] = useState<boolean>(true);
 
   const fetchCurrentTns = useCallback(async () => {
     try {
@@ -82,6 +83,7 @@ function App() {
     setEditContent(currentTns);
     setMessage('');
     setError('');
+    setWriteBack(true);
   };
 
   const cancelEditing = () => {
@@ -96,7 +98,9 @@ function App() {
     setMessage('');
     setError('');
     try {
-      const res = await axios.post(`${API_BASE_URL}/api/save`, { content: editContent });
+      const payload: { content: string; dirName?: string } = { content: editContent };
+      if (writeBack && selectedFile) payload.dirName = selectedFile;
+      const res = await axios.post(`${API_BASE_URL}/api/save`, payload);
       setMessage(res.data.message || '保存に成功しました。');
       setIsEditing(false);
       await fetchCurrentTns();
@@ -160,6 +164,15 @@ function App() {
                   aria-label="tnsnames.ora 編集"
                 />
                 <div className="edit-controls">
+                  <label style={{ marginRight: 12 }}>
+                    <input
+                      type="checkbox"
+                      checked={writeBack}
+                      onChange={(e) => setWriteBack(e.target.checked)}
+                      disabled={!selectedFile}
+                    />
+                    {' '}バージョンフォルダに書き戻す
+                  </label>
                   <button onClick={saveEdit} disabled={isSaving}>保存</button>
                   <button onClick={cancelEditing} disabled={isSaving}>キャンセル</button>
                 </div>

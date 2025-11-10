@@ -88,27 +88,38 @@ app.post('/api/switch', async (req, res) => {
 // 編集したtnsnames.oraを保存するエンドポイント
 app.post('/api/save', async (req, res) => {
   const content: string = req.body?.content;
+  const dirName: string | undefined = req.body?.dirName;
   if (!TNS_ADMIN_PATH) {
     return res.status(400).send('環境変数 TNS_ADMIN が設定されていません。');
   }
   if (typeof content !== 'string') {
-    return res.status(400).send('content が必要です。');
+    return res.status(400).send('設定が正しく記載されていません。');
   }
 
   try {
-    // 既存ファイルのバックアップ（存在すれば）
-    try {
-      const backupPath = `${TARGET_TNS_FILE_PATH}.bak.${Date.now()}`;
-      await fs.copyFile(TARGET_TNS_FILE_PATH, backupPath);
-      console.log(`バックアップを作成しました: ${backupPath}`);
-    } catch (backupErr) {
-      console.warn('バックアップ作成に失敗しました（ファイルが存在しない可能性あり）:', backupErr);
-      // 続行する
-    }
-
     // Shift_JIS にエンコードして書き込み
     const buffer = iconv.encode(content, 'shift_jis');
     await fs.writeFile(TARGET_TNS_FILE_PATH, buffer);
+
+    // もしフロントから選択中のバージョンフォルダ名が送られてきたら、そのフォルダ内の .ora を上書きして編集を保持する
+    if (typeof dirName === 'string' && dirName) {
+      try {
+        const sourceDir = path.join(TNS_FILES_DIR, dirName);
+        const filesInDir = await fs.readdir(sourceDir);
+        const oraFile = filesInDir.find(f => f.endsWith('.ora'));
+
+        if (!oraFile) {
+          console.warn(`バージョンフォルダ ${dirName} に .ora ファイルが見つかりません。書き戻しをスキップします。`);
+        } else {
+          const versionFilePath = path.join(sourceDir, oraFile);
+          await fs.writeFile(versionFilePath, buffer);
+          console.log(`バージョンフォルダ ${dirName} の ${oraFile} を更新しました`);
+        }
+      } catch (dirErr) {
+        console.error(`バージョンフォルダ ${dirName} への書き戻しに失敗しました:`, dirErr);
+        // 書き戻し失敗でも主要な保存は成功しているので 200 を返す
+      }
+    }
 
     res.json({ message: 'tnsnames.ora を保存しました。' });
   } catch (err) {
